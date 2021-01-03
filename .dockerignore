@@ -1,0 +1,12 @@
+node_modules
+npm-debug.log
+dist
+test
+client/node_modules
+client/build
+.idea
+*.iml
+.circleci
+infrastructure
+.env
+.git
