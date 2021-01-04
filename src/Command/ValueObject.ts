@@ -3,10 +3,13 @@ import {Identity} from "../Identity";
 import {Immutable} from "../Immutable";
 import {Value} from "../Value";
 
-export type ValueObject<T extends Value> = Immutable<T> & Identity<ValueObject<T>>
+export interface ValueObject<T extends Value = Value> extends Identity<ValueObject<T>> {
+    value: Immutable<T>
+}
 
-export const valueOf: <T extends Value>(a: Immutable<T>) => ValueObject<T> = a => ({
-    ...a,
-    equals: other => util.isDeepStrictEqual(a, other),
-    toString: () => JSON.stringify(a)
+export const valueOf: <T extends Value>(value: Immutable<T>) => ValueObject<T> =
+    <T extends Value>(value: Immutable<T>)  => ({
+    value,
+    equals: other => util.isDeepStrictEqual(other.value, value),
+    toString: () => JSON.stringify(value)
 })

@@ -26,7 +26,7 @@ describe("given", () => {
     stream.addExecutor(
         PROCESS_TODO,
         (command: Command<CommandType>) => (state: O.Option<Aggregate<StateModel>>) =>
-            E.tryCatch(() => domainEvent(CREATED, STREAM_ID, {a : command.a}, 0), E.toError)
+            E.tryCatch(() => domainEvent(CREATED, STREAM_ID, {a : command.payload.a}, 0), E.toError)
     )
     app.commandBus.subscribe(stream)
 

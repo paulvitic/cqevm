@@ -20,13 +20,13 @@ describe("", () => {
     }
 
     // a view model
-    type SomeTodo = { todo: {a: string}[] }
+    type SomeTodo = {a: string}[]
 
     const createdMutator = (prev: O.Option<SomeTodo>) => (event:DomainEvent<Created>)  => pipe(
         prev,
-        O.fold(() => E.right({ todo: [{a: event.a}] } ),
+        O.fold(() => E.right([{a: event.payload.a}]),
             prev => E.tryCatch(
-                () => ({ todo: prev.todo.concat([{ a: event.a}])}), E.toError)
+                () => (prev.concat([{ a: event.payload.a}])), E.toError)
         )
     )
 
@@ -53,7 +53,7 @@ describe("", () => {
         await wait
         let mutatedView = await todoView.get()()
         let res = E.isRight(mutatedView) && O.isSome(mutatedView.right) && mutatedView.right.value
-        expect(res.todo.length).toBe(1)
+        expect(res.length).toBe(1)
 
         createdOut = await eventBus.dispatch(created)()
         expect(E.right(createdOut)).toBeTruthy()
@@ -62,7 +62,7 @@ describe("", () => {
             setTimeout(() => resolve(), 1000));
         mutatedView = await todoView.get()()
         res = E.isRight(mutatedView) && O.isSome(mutatedView.right) && mutatedView.right.value
-        expect(res.todo.length).toBe(2)
+        expect(res.length).toBe(2)
 
         const updated: DomainEvent<Updated> = domainEvent(
             UPDATED,
@@ -76,7 +76,7 @@ describe("", () => {
             setTimeout(() => resolve(), 1000));
         mutatedView = await todoView.get()()
         res = E.isRight(mutatedView) && O.isSome(mutatedView.right) && mutatedView.right.value
-        expect(res.todo.length).toBe(2)
+        expect(res.length).toBe(2)
 
         expect(updatedMutator).toBeCalledTimes(1)
 
@@ -87,6 +87,6 @@ describe("", () => {
             setTimeout(() => resolve(), 1000));
         mutatedView = await todoView.get()()
         res = E.isRight(mutatedView) && O.isSome(mutatedView.right) && mutatedView.right.value
-        expect(res.todo.length).toBe(3)
+        expect(res.length).toBe(3)
     })
 })

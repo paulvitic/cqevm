@@ -1,6 +1,6 @@
 import * as E from "fp-ts/Either"
 import * as O from "fp-ts/Option"
-import {domainEvent, DomainEvent, InMemoryEventLog, InMemoryEventBus} from "../../DomainEvent";
+import {domainEvent, DomainEvent} from "../../DomainEvent";
 import {eventStream} from "../EventStream";
 import {ValueObject} from "../ValueObject";
 import {DomainEntity} from "../DomainEntity";
@@ -38,7 +38,7 @@ describe("given", () => {
                     E.fromOption(() => new Error("already created")),
                     E.chain( () => E.tryCatch(() => aggregate(
                         event.streamId,
-                        {a: event.a, b: O.none, d: O.none},
+                        {a: event.payload.a, b: O.none, d: O.none},
                         event.sequence), E.toError)
                     )
                 ))
@@ -55,7 +55,7 @@ describe("given", () => {
                         domainEvent(
                             UPDATED_EVENT,
                             STREAM_ID,
-                            {a: command.prop},
+                            {a: command.payload.prop},
                             previous.playHead + 1)
                         )
                     )
@@ -66,7 +66,7 @@ describe("given", () => {
         it("then", async () => {
             await app.eventLog.append(domainEvent(CREATED_EVENT, STREAM_ID, {a: "initial value"}))()
 
-            await app.commandBus.dispatch(command(UPDATE_COMMAND, {prop: "update value", streamId: O.some(STREAM_ID)}))()
+            await app.commandBus.dispatch(command(UPDATE_COMMAND, {prop: "update value"}, STREAM_ID))()
 
             await new Promise<void>(resolve =>
                 setTimeout(() => resolve(), 1000));

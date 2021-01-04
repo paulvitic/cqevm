@@ -1,13 +1,14 @@
 import {Identity} from "../Identity";
 import {State} from "./State";
 
-export type DomainEntity<T extends State> = T & Identity<T> & {
+export interface DomainEntity<T extends State = State> extends Identity<DomainEntity<T>> {
     readonly id: string | number
+    state: T
 }
 
-export const domainEntity = <T extends State = State>(id: string | number, state: T): DomainEntity<T> => ({
+export const domainEntity = <T extends State>(id: string | number, state: T): DomainEntity<T> => ({
     id,
-    ...state,
+    state,
     equals: other => other.id === id,
-    toString: () => JSON.stringify({id, ...state})
+    toString: () => JSON.stringify({id, state})
 })

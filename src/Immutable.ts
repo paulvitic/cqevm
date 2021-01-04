@@ -3,6 +3,7 @@
  * see: https://t.co/JgNBZcB1YA?amp=1
  *
  */
+
 interface ImmutableArray<T> extends ReadonlyArray<Immutable<T>> {}
 
 type ImmutableObject<T> = {

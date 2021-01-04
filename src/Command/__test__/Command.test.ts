@@ -8,6 +8,6 @@ describe("", () => {
         const a = "some value"
         const testCommand: Command<TestCommand> = command(TEST_COMMAND, { a })
         expect(testCommand.type).toBe(TEST_COMMAND)
-        expect(testCommand.a).toBe(a)
+        expect(testCommand.payload.a).toBe(a)
     })
 })

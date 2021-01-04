@@ -3,7 +3,7 @@ import * as TE from "fp-ts/TaskEither";
 import {Value} from "../Value";
 import {pipe} from "fp-ts/pipeable";
 import {TaskEither} from "fp-ts/TaskEither";
-import {Observer, Subject} from "rxjs";
+import {Subject} from "rxjs";
 import * as E from "fp-ts/Either";
 import {DomainEvent} from "../DomainEvent";
 import {filter} from "rxjs/operators";

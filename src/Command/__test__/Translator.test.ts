@@ -29,7 +29,7 @@ describe("given", () => {
     stream.addExecutor(
         PROCESS_TODO,
         (command: Command<CommandType>) => (state: O.Option<Aggregate<StateModel>>) =>
-            E.tryCatch(() => domainEvent(UPDATED, STREAM_ID, {a : command.a}, 0), E.toError)
+            E.tryCatch(() => domainEvent(UPDATED, STREAM_ID, {a : command.payload.a}, 0), E.toError)
     )
     app.commandBus.subscribe(stream)
 
@@ -38,7 +38,7 @@ describe("given", () => {
     describe("when", () => {
         const when = translator(app.commandBus)
         when.addTranslation(CREATED, (event: DomainEvent<CreatedType>) => E.tryCatch(() =>
-                    O.some(command(PROCESS_TODO, {a: event.a, streamId: O.some(event.streamId)}))
+                    O.some(command(PROCESS_TODO, {a: event.payload.a}, event.streamId))
                 , E.toError))
         app.eventBus.subscribe(when)
 

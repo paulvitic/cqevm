@@ -1,5 +1,5 @@
 {
-  "name": "sqev",
+  "name": "cqevm",
   "version": "0.0.1",
   "description": "POC with event modelling, CQRS/ES and micro front-end",
   "private": false,
@@ -63,5 +63,15 @@
     "shelljs": "^0.8.4",
     "supertest": "^6.0.0",
     "nock": "^13.0.4"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paulvitic/cqevm.git"
+  },
+  "author": "Paul Vitic",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/paulvitic/cqevm/issues"
+  },
+  "homepage": "https://github.com/paulvitic/cqevm#readme"
 }

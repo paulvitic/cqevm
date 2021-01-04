@@ -5,7 +5,7 @@
     "lib": [
       "esnext"
     ],
-    "target": "es2019",
+    "target": "esnext",
     "module": "commonjs",
     "esModuleInterop": true,
     "sourceMap": true,
