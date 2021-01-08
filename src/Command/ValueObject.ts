@@ -1,5 +1,5 @@
 import * as util from "util";
-import {Identity} from "../Identity";
+import {Identity} from "./Identity";
 import {Immutable} from "../Immutable";
 import {Value} from "../Value";
 

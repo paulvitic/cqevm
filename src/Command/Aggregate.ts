@@ -13,5 +13,5 @@ export const aggregate = <T extends State>(
         playHead: playHead ? playHead : 0,
         state,
         equals: other => other.id === id,
-        toString: () => JSON.stringify({id, state})
+        toString: () => JSON.stringify({id, playHead, state})
     })

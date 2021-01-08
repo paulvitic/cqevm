@@ -1,29 +1,28 @@
-import * as TE from "fp-ts/TaskEither";
-import * as E from "fp-ts/Either";
-import {Value} from "../Value";
 import {DomainEvent} from "./DomainEvent";
 import {Subject} from "rxjs";
-import {TaskEither} from "fp-ts/TaskEither";
+import {TaskEither, tryCatch as tryCatchPromise} from "fp-ts/TaskEither";
 import {filter} from "rxjs/operators";
+import {Either, toError, tryCatch} from "fp-ts/Either";
 
-export interface EventListener<D extends Value> {
+export interface EventListener {
     events: () => string[],
-    handleEvent: (event: DomainEvent<D>) => TaskEither<Error, void>
+    handleEvent: (event: DomainEvent) => TaskEither<Error, void>
 }
 
 export interface EventBus {
-    subscribe<D extends Value>(eventListener: EventListener<D>): E.Either<Error, void>
-    dispatch<D extends Value>(event: DomainEvent<D>): TE.TaskEither<Error, void>
+    subscribe(eventListener: EventListener): Either<Error, void>
+    dispatch(event: DomainEvent): TaskEither<Error, void>
 }
 
-export const InMemoryEventBus: <D extends Value>() => EventBus = <D extends Value>() => {
-    const subject = new Subject<DomainEvent<D>>()
+export const InMemoryEventBus: () => EventBus = () => {
+    const subject = new Subject<DomainEvent>()
     return {
-        subscribe: (eventListener: EventListener<D>) => E.tryCatch(() => {
+        subscribe: (eventListener: EventListener) => tryCatch(() => {
             subject
                 .pipe(filter(event => eventListener.events().includes(event.type)))
                 .subscribe(async event => await eventListener.handleEvent(event)())
-            }, E.toError),
-        dispatch: (event: DomainEvent<D>) => TE.tryCatch(() => Promise.resolve(subject.next(event)), E.toError)
+            }, toError),
+        dispatch: (event: DomainEvent) => tryCatchPromise(
+            () => Promise.resolve(subject.next(event)), toError)
     }
 }

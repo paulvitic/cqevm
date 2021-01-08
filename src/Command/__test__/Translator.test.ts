@@ -25,7 +25,7 @@ describe("given", () => {
     type StateModel = { a : string }
 
     const STREAM_ID = 1234
-    const stream = eventStream(app.eventLog)
+    const stream = eventStream()
     stream.addExecutor(
         PROCESS_TODO,
         (command: Command<CommandType>) => (state: O.Option<Aggregate<StateModel>>) =>

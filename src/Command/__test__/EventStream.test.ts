@@ -5,14 +5,11 @@ import {eventStream} from "../EventStream";
 import {ValueObject} from "../ValueObject";
 import {DomainEntity} from "../DomainEntity";
 import {pipe} from "fp-ts/pipeable";
-import {Command, command} from "../Command";
-import {take, toArray} from "rxjs/operators";
 import {Aggregate, aggregate} from "../Aggregate";
-import {App} from "../../App";
 import {Option} from "fp-ts/Option";
+import {from} from "rxjs";
 
 describe("given", () => {
-    const app = App();
 
     const STREAM_ID = 1234
 
@@ -20,7 +17,11 @@ describe("given", () => {
     type CreatedEvent = { a: string }
 
     const UPDATED_EVENT = "UPDATED_EVENT"
-    type UPDATED_EVENT = { a: string }
+    //type UPDATED_EVENT = { a: string }
+
+    let given = from([
+        domainEvent(CREATED_EVENT, STREAM_ID, {a: "initial value"})
+    ])
 
     describe("when", () => {
         type TestState = {
@@ -29,7 +30,7 @@ describe("given", () => {
             d: O.Option<DomainEntity<{e: number}>>
         }
 
-        const when = eventStream(app.eventLog)
+        const when = eventStream()
         when.addReducer(CREATED_EVENT,
             (event: DomainEvent<CreatedEvent>) => (state: Option<Aggregate<TestState>>) =>
                 pipe(
@@ -43,11 +44,10 @@ describe("given", () => {
                     )
                 ))
 
-        const UPDATE_COMMAND = "UPDATE_COMMAND"
-        type CreateCommand = { prop: string}
+        const EXECUTE_UPDATE_COMMAND = "UPDATE_COMMAND"
 
-        when.addExecutor(UPDATE_COMMAND,
-            (command: Command<CreateCommand>) => state =>
+        when.addExecutor(EXECUTE_UPDATE_COMMAND,
+            (prop: string) => state =>
                 pipe(
                     state,
                     E.fromOption(() => new Error("no state to update")),
@@ -55,43 +55,25 @@ describe("given", () => {
                         domainEvent(
                             UPDATED_EVENT,
                             STREAM_ID,
-                            {a: command.payload.prop},
+                            {a: prop},
                             previous.playHead + 1)
                         )
                     )
                 ))
 
-        app.commandBus.subscribe(when)
-
         it("then", async () => {
-            await app.eventLog.append(domainEvent(CREATED_EVENT, STREAM_ID, {a: "initial value"}))()
+            let then = pipe(
+                when.aggregate(given),
+                E.map( aggregate => pipe(
+                    when.executor(EXECUTE_UPDATE_COMMAND),
+                    E.fromOption(() => new Error()),
+                    E.map( executor => executor("")(aggregate)),
+                    E.flatten
+                )),
+                E.flatten
+            )
 
-            await app.commandBus.dispatch(command(UPDATE_COMMAND, {prop: "update value"}, STREAM_ID))()
-
-            await new Promise<void>(resolve =>
-                setTimeout(() => resolve(), 1000));
-            let loggedEvents: DomainEvent[] = []
-            let stream = await app.eventLog.stream(STREAM_ID)()
-            E.isRight(stream) && O.isSome(stream.right) && stream.right.value
-                .pipe(take(10), toArray())
-                .subscribe(res => loggedEvents = res)
-
-            expect(loggedEvents.length).toBe(2)
-            expect(loggedEvents[0].type).toBe(CREATED_EVENT)
+            expect(E.isRight(then) && then.right.type).toBe(UPDATED_EVENT)
         })
     })
-})
-
-describe("test stream", () => {
-    /*testStream.addExecutor(CREATE_COMMAND,
-            (command: Command<CreateCommand>) => state =>
-                pipe(
-                    state,
-                    O.fold(() => E.tryCatch(() => domainEvent(
-                        CREATED_EVENT,
-                        1234,
-                        {a: command.prop}), E.toError),
-                        _prev => E.left(new Error('already created'))
-                    )
-                ))*/
 })

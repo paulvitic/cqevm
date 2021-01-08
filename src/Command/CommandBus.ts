@@ -1,40 +1,39 @@
 import {Command} from "./Command";
 import * as TE from "fp-ts/TaskEither";
-import {Value} from "../Value";
 import {pipe} from "fp-ts/pipeable";
-import {TaskEither} from "fp-ts/TaskEither";
 import {Subject} from "rxjs";
 import * as E from "fp-ts/Either";
-import {DomainEvent} from "../DomainEvent";
+import {DomainEvent, EventLog} from "../DomainEvent";
 import {filter} from "rxjs/operators";
+import {CommandListener} from "./CommandListener";
 
-export type CommandListener<C extends Value, D extends Value> = {
-    commands: () => string[],
-    handleCommand: (command: Command<C>) => TaskEither<Error, DomainEvent<D>>
+export interface CommandBus {
+    subscribe(commandListener: CommandListener): E.Either<Error, void>;
+    dispatch(command: Command): TE.TaskEither<Error, DomainEvent>;
 }
 
-export interface CommandBus<C extends Value, D extends Value> {
-    subscribe(commandListener: CommandListener<C, D>): E.Either<Error, void>;
-    dispatch(command: Command<C>): TE.TaskEither<Error, DomainEvent<D>>;
-}
 
-export const InMemoryCommandBus: <C extends Value, D extends Value>() => CommandBus<C, D> =
-    <C extends Value, D extends Value>() => {
-        const in$ = new Subject<Command<C>>()
-        const out$ = new Subject<E.Either<Error,DomainEvent<D>>>()
+export const InMemoryCommandBus: (eventLog: EventLog) => CommandBus =
+    eventLog => {
+        const when$ = new Subject<Command>()
+        const then$ = new Subject<E.Either<Error,DomainEvent>>()
         return {
-            subscribe: (commandListener: CommandListener<C, D>) => E.tryCatch(() => {
-                in$.pipe(
-                    filter<Command<C>>(command => commandListener.commands().includes(command.type))
-                ).subscribe(async command => out$.next(await commandListener.handleCommand(command)()))
+            subscribe: (commandListener: CommandListener) => E.tryCatch(() => {
+                    when$.pipe(
+                        filter<Command>(command => commandListener.commands().includes(command.type))
+                    ).subscribe(async when => then$.next(await pipe(
+                        TE.of(when.streamId),
+                        TE.chain(eventLog.stream),
+                        TE.chain( given => commandListener.changeState(given)(when))
+                    )()))
                 }, E.toError),
-            dispatch: (command: Command<C>) => TE.tryCatch(() => new Promise<DomainEvent<D>>(
+            dispatch: (when: Command) => TE.tryCatch(() => new Promise<DomainEvent>(
                 (resolve, reject) => {
-                    const subs = out$.subscribe(event => {
+                    const subs = then$.subscribe(then => {
                         subs.unsubscribe();
-                        pipe(event, E.fold(reject, resolve))
+                        pipe(then, E.fold(reject, resolve))
                     })
-                    in$.next(command);
+                    when$.next(when);
                 }), E.toError)
         }
     }

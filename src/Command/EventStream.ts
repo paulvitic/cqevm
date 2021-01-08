@@ -1,92 +1,58 @@
-import {EventLog, DomainEvent} from "../DomainEvent";
+import {DomainEvent} from "../DomainEvent";
 import {Option} from "fp-ts/Option";
 import {State} from "./State";
-import * as TE from "fp-ts/TaskEither";
 import {pipe} from "fp-ts/pipeable";
 import * as O from "fp-ts/Option";
 import * as E from "fp-ts/Either";
 import {Value} from "../Value";
-import {Command} from "./Command";
-import {CommandListener} from "./CommandBus";
 import {Aggregate} from "./Aggregate";
 import {Observable} from "rxjs";
-import {TaskEither} from "fp-ts/TaskEither";
 
-/**
- * Test with
- *
- * @see: https://eventmodeling.org/posts/what-is-event-modeling/?s=09
- */
-export type StateChange<S extends Value, T extends Value> =
-    (given: Observable<DomainEvent<T>>) => (when: Command<S>) => TaskEither<Error, DomainEvent<T>>
+export type StreamReducer<A extends State> =
+    (event: DomainEvent) => (aggregate: Option<Aggregate<A>>) => E.Either<Error, Aggregate<A>>
 
-export type StreamReducer<D extends Value, A extends State> =
-    (event: DomainEvent<D>) => (aggregate: Option<Aggregate<A>>) => E.Either<Error, Aggregate<A>>
+export type StreamAggregator<A extends State> =
+    (stream: Observable<DomainEvent>) => E.Either<Error, O.Option<Aggregate<A>>> // todo: can this be optional??
 
-export type CommandExecutor<C extends Value, A extends State, D extends Value> =
-    (a: Command<C>) => (a: O.Option<Aggregate<A>>) => E.Either<Error, DomainEvent<D>>
+export type CommandExecutor<A extends State> =
+    (...args: any[]) => (state: O.Option<Aggregate<A>>) => E.Either<Error, DomainEvent>
 
-export interface EventStream<C extends Value, A extends State, D extends Value> extends CommandListener<C, D> {
-    addReducer(eventType: string, reducer: StreamReducer<D, A>): E.Either<Error, void>
-    addExecutor(commandType: string, executor: CommandExecutor<C, A, D>): E.Either<Error, void>
+export interface EventStream<A extends State> {
+    addReducer(eventType: string, reducer: StreamReducer<A>): E.Either<Error, void>
+    aggregate: StreamAggregator<A>
+    addExecutor(name: string, executor: CommandExecutor<A>): E.Either<Error, void>
+    executor(name: string): O.Option<CommandExecutor<A>>
 }
 
-export const eventStream: <C extends Value, A extends State, D extends Value>(eventLog: EventLog<D>) => EventStream<C, A, D> =
-    <C extends Value, A extends State, D extends Value>(eventLog: EventLog<D>) => {
+export const eventStream: <A extends State>() => EventStream<A> =
+    <A extends State, D extends Value>() => {
 
-        const executors: { [commandType: string]: CommandExecutor<C, A, D> } = {}
-        const reducers: { [eventType: string]: StreamReducer<D, A> } = {}
-
-        const reduce: (stream: O.Option<Observable<DomainEvent<D>>>) => E.Either<Error, O.Option<Aggregate<A>>> =
-            stream => pipe(
-                stream,
-                O.fold(() => E.right(O.none),
-                    stream => E.tryCatch(() => {
-                        let state: O.Option<Aggregate<A>> = O.none
-                        stream.subscribe(
-                            event => pipe(
-                                O.fromNullable(reducers[event.type]),
-                                E.fromOption(() => new Error("no reducer")),
-                                E.chain(reducer => reducer(event)(state)),
-                                E.map( nextState => {state = O.some(nextState)})
-                            )
-                        )
-                        return state
-                    }, E.toError)
-                )
-            )
-
-        const execute: (command: Command<C>, executor: CommandExecutor<C, A, D>) =>
-            TE.TaskEither<Error, DomainEvent<D>> = (command, executor) => pipe(
-            command.streamId,
-            O.fold(() => TE.right(O.none), eventLog.stream),
-            TE.chain( stream => TE.fromEither(reduce(stream))),
-            TE.chain(state => TE.fromEither(executor(command)(state)))
-        )
+        const executors: { [name: string]: CommandExecutor<A> } = {}
+        const reducers: { [eventType: string]: StreamReducer<A> } = {}
 
         return {
             commands: () => Object.keys(executors),
-            handleCommand: (command: Command<C>) => pipe(
-                O.fromNullable(executors[command.type]),
-                O.fold( () => TE.right(null),
-                    executor => pipe(
-                        execute(command, executor),
-                        TE.chainFirst( event => eventLog.append(event))
-                    )
-                )
-            ),
-            addReducer(eventType: string, reducer: StreamReducer<D, A>): E.Either<Error, void> {
-                return pipe(
+            addReducer: (eventType: string, reducer: StreamReducer<A>): E.Either<Error, void> =>
+                pipe(
                     reducers,
                     E.fromPredicate(reducers => pipe(
-                            O.fromNullable(reducers[eventType]),
-                            O.isNone
-                        ),
-                        () => new Error('reducer already registered')),
+                        O.fromNullable(reducers[eventType]),
+                        O.isNone
+                    ), () => new Error('reducer already registered')),
                     E.map(reducers => { reducers[eventType] = reducer })
+                ),
+            aggregate: stream => E.tryCatch(() => {
+                let state: O.Option<Aggregate<A>> = O.none
+                stream.subscribe(
+                    event => pipe(
+                        O.fromNullable(reducers[event.type]),
+                        E.fromOption(() => new Error("no reducer")),
+                        E.chain(reducer => reducer(event)(state)),
+                        E.map( nextState => { state = O.some(nextState) }))
                 )
-            },
-            addExecutor: (commandType: string, executor: CommandExecutor<C, A, D>) =>
+                return state
+            }, E.toError),
+            addExecutor: (commandType: string, executor: CommandExecutor<A>) =>
                 pipe(
                     executor,
                     E.fromPredicate(
@@ -95,7 +61,8 @@ export const eventStream: <C extends Value, A extends State, D extends Value>(ev
                     E.map(executor => {
                         executors[commandType] = executor;
                     })
-                )
+                ),
+            executor: (name: string): Option<CommandExecutor<A>> => O.fromNullable(executors[name])
         }
 }
 

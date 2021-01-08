@@ -16,24 +16,26 @@ describe("given", ()=> {
 
     app.commandBus.subscribe({
         commands: () => [COMMAND_A],
-        handleCommand: command => TE.tryCatch(() => new Promise<DomainEvent>( async resolve => {
+        changeState: _given => _when => TE.tryCatch(() => new Promise<DomainEvent>( async resolve => {
             let event = domainEvent(EVENT_A, 123, {})
             await new Promise<void>(resolve => setTimeout(() => resolve(), 800));
             resolve(event)
-            }), E.toError)
+        }), E.toError),
+        bindExecutor: (_commandType, _map, _stream, _executorName) => E.right(null)
     })
 
     app.commandBus.subscribe({
         commands: () => [COMMAND_B],
-        handleCommand: command => TE.tryCatch(() => new Promise<DomainEvent>( async resolve => {
+        changeState: _given => _when => TE.tryCatch(() => new Promise<DomainEvent>( async resolve => {
             resolve(domainEvent(EVENT_B, 345, {}))
-        }), E.toError)
+        }), E.toError),
+        bindExecutor: (_commandType, _map, _stream, _executorName) => E.right(null)
     })
 
     it('Can register a command handler', async () => {
 
-        let eventA = await app.commandBus.dispatch(command(COMMAND_A, {}))()
-        let eventB = await app.commandBus.dispatch(command(COMMAND_B, {}))()
+        let eventA: E.Either<Error, DomainEvent> = await app.commandBus.dispatch(command(COMMAND_A, {}))()
+        let eventB: E.Either<Error, DomainEvent> = await app.commandBus.dispatch(command(COMMAND_B, {}))()
 
         await new Promise<void>(resolve => setTimeout(() => resolve(), 1000));
         expect(E.isRight(eventA) && eventA.right.type).toBe(EVENT_A)

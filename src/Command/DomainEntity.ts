@@ -1,4 +1,4 @@
-import {Identity} from "../Identity";
+import {Identity} from "./Identity";
 import {State} from "./State";
 
 export interface DomainEntity<T extends State = State> extends Identity<DomainEntity<T>> {
