@@ -14,6 +14,19 @@ export type SourceCodeRegistered = {
     name: string
 }
 
+export const DEPLOYMENT_REPORT_SOURCE_RECORDED = "DEPLOYMENT_REPORT_SOURCE_RECORDED"
+export type DeploymentReportSourceRecorded = {
+    nextReportDate: number
+}
+
+export const DEPLOYMENTS_COUNTED = "DEPLOYMENTS_COUNTED"
+export type DeploymentsCounted = {
+    reportDate: number
+    count: number
+    nextReportDate: number
+}
+
+
 //////////////////
 // Stream
 //////////////////
@@ -26,9 +39,9 @@ export const EXECUTE_REGISTER_SOURCE_CODE = "EXECUTE_REGISTER_SOURCE_CODE"
 export const sourceCode = pipe(
     E.of(eventStream<SourceCode>()),
 
-    E.chainFirst( sc => sc.addReducer(SOURCE_CODE_REGISTERED,
-        (event: DomainEvent<SourceCodeRegistered>) => prev => pipe(
-            prev,
+    E.chainFirst( stream => stream.reducerFor(SOURCE_CODE_REGISTERED,
+        (event: DomainEvent<SourceCodeRegistered>) => state => pipe(
+            state,
             O.fold(() => E.tryCatch(() =>
                     aggregate(event.streamId, {name: event.payload.name}, event.sequence), E.toError),
                 _ => E.left(new Error("already reduced source code registered"))
@@ -36,13 +49,13 @@ export const sourceCode = pipe(
         ))
     ),
 
-    E.chainFirst( sc => sc.addExecutor(EXECUTE_REGISTER_SOURCE_CODE,
-        (name: string) => (aggregate: O.Option<Aggregate<SourceCode>>) => pipe(
-            aggregate,
-            E.fromPredicate(agg => O.isNone(agg),
+    E.chainFirst( stream => stream.executor(EXECUTE_REGISTER_SOURCE_CODE,
+        (name: string) => (state: O.Option<Aggregate<SourceCode>>) => pipe(
+            state,
+            E.fromPredicate(state => O.isNone(state),
                 () => new Error(`Source code already registered`)),
             E.chain(() => E.tryCatch(() =>
-                    domainEvent(SOURCE_CODE_REGISTERED, uuidv4(), {name}), E.toError))
+                    domainEvent(SOURCE_CODE_REGISTERED, uuidv4(), {name}, 0), E.toError))
         ))
     )
 )

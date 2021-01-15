@@ -21,9 +21,9 @@ export type Process<V extends Value, C extends Value> =
 export type Processor<V extends Value> =
     (view: TE.TaskEither<Error, O.Option<V>>) => TE.TaskEither<Error, void>
 
-export const processor: <V extends Value, C extends Value, D extends Value>(commandBus: CommandBus<C, D>, process: Process<V, C>) =>
-    Processor<V> = <V extends Value, C extends Value, D extends Value>(commandBus: CommandBus<C, D>, process: Process<V, C>) => {
-    return (view: TE.TaskEither<Error, O.Option<V>>) => pipe(
+export const processor: <V extends Value, C extends Value>(process: Process<V, C>) =>
+    (commandBus: CommandBus) => Processor<V> = <V extends Value, C extends Value>(process: Process<V, C>) => {
+    return (commandBus: CommandBus) => (view: TE.TaskEither<Error, O.Option<V>>) => pipe(
         view,
         TE.chain(process),
         TE.chain( command => pipe(

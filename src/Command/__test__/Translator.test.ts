@@ -26,7 +26,7 @@ describe("given", () => {
 
     const STREAM_ID = 1234
     const stream = eventStream()
-    stream.addExecutor(
+    stream.executor(
         PROCESS_TODO,
         (command: Command<CommandType>) => (state: O.Option<Aggregate<StateModel>>) =>
             E.tryCatch(() => domainEvent(UPDATED, STREAM_ID, {a : command.payload.a}, 0), E.toError)

@@ -23,7 +23,7 @@ describe("given", () => {
     const STREAM_ID = 1234
     const stream = eventStream(app.eventLog)
 
-    stream.addExecutor(
+    stream.executor(
         PROCESS_TODO,
         (command: Command<CommandType>) => (state: O.Option<Aggregate<StateModel>>) =>
             E.tryCatch(() => domainEvent(CREATED, STREAM_ID, {a : command.payload.a}, 0), E.toError)
@@ -43,11 +43,11 @@ describe("given", () => {
                     O.map( view => command(PROCESS_TODO, { a: view.todo[0].a })))
                 ), E.toError)
             )
-            given.addProcessor(1000, when)
+            given.process(1000, when)
 
             it("then", async () => {
 
-                await repo.set({todo: [{ a: "some todo"}]})()
+                await repo.update({todo: [{ a: "some todo"}]})()
 
                 await new Promise<void>(resolve =>
                     setTimeout(() => resolve(), 1000));

@@ -7,56 +7,48 @@ import {Option} from "fp-ts/Option";
 import {pipe} from "fp-ts/pipeable";
 import {InMemoryRepository, Repository} from "./Repository";
 import {Query} from "./Query";
-import {QueryListener} from "./QueryBus";
-import {Observable, Subscription, timer} from "rxjs";
+import {Subscription, timer} from "rxjs";
 import {map} from "rxjs/operators";
 import {Processor} from "./Processor";
 import {array} from "fp-ts";
+import {QueryListener} from "./QueryListener";
 
-/**
- * Test with
- *
- * @see: https://eventmodeling.org/posts/what-is-event-modeling/?s=09
- */
-export type StateView<D extends Value, V extends Value> =
-    (when: Observable<DomainEvent<D>>) => E.Either<Error, V>
+export type ViewMutator<V extends Value = Value> =
+    (prev: Option<V>) => (when: DomainEvent) => E.Either<Error, V>
 
-export type ViewMutator<D extends Value = Value, V extends Value = Value> =
-    (prev: Option<V>) => (when: DomainEvent<D>) => E.Either<Error, V>
+export type QueryExecutor<V extends Value> =
+    (query: Query) => TE.TaskEither<Error, Option<V>>
 
-export type QueryExecutor<Q extends Value, V extends Value> =
-    (query: Query<Q>) => TE.TaskEither<Error, V>
-
-export interface View<D extends Value, V extends Value, Q extends Value> extends EventListener<D>, QueryListener<Q, V> {
-    addMutator(eventType: string, mutator: ViewMutator<D, V>): E.Either<Error, void>
-    addExecutor(queryType: string, executor: QueryExecutor<Q, V>): E.Either<Error, void>
-    addProcessor(frequency:number, processor: Processor<V>): E.Either<Error, void>
+export interface View<V extends Value> extends EventListener, QueryListener<V> {
     get(): TE.TaskEither<Error, O.Option<V>>
+    mutateWhen(eventType: string, mutator: ViewMutator<V>): E.Either<Error, void>
+    queryHandler(queryType: string, executor: QueryExecutor<V>): E.Either<Error, void>
+    process(frequency: number, processor: Processor<V>): E.Either<Error, void>
     stopProcessors(): E.Either<Error, void>
 }
 
-export const view: <D extends Value, V extends Value, Q extends Value>(repository?: Repository<V>) => View<D, V, Q> =
-    <D extends Value, V extends Value, Q extends Value>(repository: Repository<V>) => {
+export const view: <V extends Value>(repository?: Repository<V>) => View<V> =
+    <V extends Value>(repository: Repository<V>) => {
 
         const repo: Repository<V> = repository ? repository : InMemoryRepository()
-        const mutators: {[eventType: string]: ViewMutator<any>} = {}
-        const executors: {[queryType: string]: QueryExecutor<any, any>} = {}
+        const mutators: {[eventType: string]: ViewMutator<V>} = {}
+        const executors: {[queryType: string]: QueryExecutor<V>} = {}
         const processors: Subscription[] = []
 
         return {
             events: () => Object.keys(mutators),
-            handleEvent: (event: DomainEvent<D>) =>
+            handleEvent: (event: DomainEvent) =>
                 pipe(
                     O.fromNullable(mutators[event.type]),
                     TE.fromOption(() => new Error("view mutator not found")),
-                    TE.chain(mutator => pipe(
-                        repo.get(),
-                        TE.chain(prev => TE.fromEither(mutator(prev)(event))),
-                        TE.chain(repo.set)
-                        ),
+                    TE.chain(mutate => pipe(
+                        repo.peek(),
+                        TE.chain(from => TE.fromEither(mutate(from)(event))),
+                        TE.chain(repo.update))
                     )
                 ),
-            addMutator: (eventType: string, mutator: ViewMutator<D, V>) =>
+            get: () => repo.peek(),
+            mutateWhen: (eventType: string, mutator: ViewMutator<V>) =>
                 pipe(
                     mutator,
                     E.fromPredicate(
@@ -66,17 +58,16 @@ export const view: <D extends Value, V extends Value, Q extends Value>(repositor
                         mutators[eventType] = mutator;
                     })
                 ),
-            get: () => repo.get(),
             queries: () => Object.keys(mutators),
-            handleQuery: (query: Query<Q>) => pipe(
+            handleQuery: (query: Query) => pipe(
                 O.fromNullable(executors[query.type]),
                 TE.fromOption(() => new Error("query executor not found")),
                 TE.chain(executor => pipe(
-                    repo.get(),
+                    repo.peek(),
                     TE.chain(() => executor(query)))
                 )
             ),
-            addExecutor: (queryType: string, executor: QueryExecutor<Q, V>) =>
+            queryHandler: (queryType: string, executor: QueryExecutor<V>) =>
                 pipe(
                     executor,
                     E.fromPredicate(
@@ -86,9 +77,9 @@ export const view: <D extends Value, V extends Value, Q extends Value>(repositor
                         executors[queryType] = executor;
                     })
                 ),
-            addProcessor: (frequency: number, processor: Processor<V>) => E.tryCatch(() => {
+            process: (frequency: number, processor: Processor<V>) => E.tryCatch(() => {
                 processors.push(timer(500, frequency)
-                    .pipe(map(() => processor(repo.get())))
+                    .pipe(map(() => processor(repo.peek())))
                         // filter( process => E.isRight(await process)))
                     .subscribe( async process => await process())
                 )

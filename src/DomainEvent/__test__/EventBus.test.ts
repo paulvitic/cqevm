@@ -35,8 +35,8 @@ describe("", () => {
     // a projection
     const repo: Repository<SomeTodo> = InMemoryRepository()
     const todoView = view(repo)
-    todoView.addMutator(CREATED, createdMutator)
-    todoView.addMutator(UPDATED, updatedMutator)
+    todoView.mutateWhen(CREATED, createdMutator)
+    todoView.mutateWhen(UPDATED, updatedMutator)
 
     it("", async () => {
         eventBus.subscribe(todoView)

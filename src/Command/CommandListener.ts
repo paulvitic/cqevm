@@ -18,7 +18,6 @@ export type StateChange = (given: Observable<DomainEvent>) => (when: Command) =>
 
 export type CommandListener<A extends State = State> = {
     commands: () => string[],
-    //handleCommand: (command: Command) => TaskEither<Error, DomainEvent>
     changeState: StateChange
     bindExecutor: (commandType: string,
                    map: (command: Command) => any[],
@@ -30,7 +29,7 @@ export const commandListener: <A extends State>() => CommandListener<A> =
     <A extends State>() => {
 
         const handlers: { [commandType: string]: {
-                aggregate: StreamAggregator<A>
+                reduce: StreamAggregator<A>
                 map: (command: Command) => any[]
                 execute: CommandExecutor<A> } } = {}
 
@@ -39,29 +38,11 @@ export const commandListener: <A extends State>() => CommandListener<A> =
             changeState: given => when => pipe(
                 O.fromNullable(handlers[when.type]),
                 O.map(handler => pipe(
-                    TE.fromEither(handler.aggregate(given)),
-                    TE.chain( aggregate => TE.fromEither(handler.execute(when)(aggregate)))
+                    TE.fromEither(handler.reduce(given)),
+                    TE.chain( state => TE.fromEither(handler.execute(when)(state)))
                 )),
                 O.getOrElse(() => TE.right(null))
             ),
-            /*handleCommand: (command: Command) => pipe(
-                O.fromNullable(handlers[command.type]),
-                O.map(handler => pipe(
-                    command.streamId,
-                    O.map(eventLog.stream),
-                    O.map( eventStream => pipe(
-                        eventStream,
-                        TE.chain( eventStream => TE.fromEither(handler.aggregate(eventStream)))
-                    )),
-                    O.map(aggregate => pipe(
-                        aggregate,
-                        TE.chain( aggregate => TE.fromEither(handler.execute(command)(aggregate)))
-                    )),
-                    TE.fromOption(() => new Error()),
-                    TE.flatten
-                )),
-                O.getOrElse(() => TE.right(null))
-            ),*/
             bindExecutor: (commandType: string,
                            map: (command: Command) => any[],
                            stream: EventStream<A>,
@@ -74,10 +55,10 @@ export const commandListener: <A extends State>() => CommandListener<A> =
                 E.chain(executors => pipe(
                     pipe(
                         E.Do,
-                        E.apS('aggregate', E.of(stream.aggregate)),
+                        E.apS('reduce', E.of(stream.reduce)),
                         E.apS('map', E.of(map)),
                         E.apSW('execute', pipe(
-                            stream.executor(executorName),
+                            stream.bind(executorName),
                             E.fromOption(() => new Error()))),
                     ),
                     E.map( executor => { executors[commandType] = executor })

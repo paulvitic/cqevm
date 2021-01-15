@@ -6,14 +6,11 @@ import {filter} from "rxjs/operators";
 import {Query} from "./Query";
 import * as O  from "fp-ts/Option";
 import {pipe} from "fp-ts/pipeable";
+import {QueryListener} from "./QueryListener";
 
-export interface QueryListener<Q extends Value, V extends Value> {
-    queries: () => string[],
-    handleQuery: (query: Query<Q>) => TE.TaskEither<Error, O.Option<V>>
-}
 
 export interface QueryBus<Q extends Value, V extends Value> {
-    subscribe(queryListener: QueryListener<Q, V>): E.Either<Error, void>
+    subscribe(queryListener: QueryListener<V>): E.Either<Error, void>
     dispatch(query: Query<Q>): TE.TaskEither<Error, O.Option<V>>
 }
 
@@ -22,7 +19,7 @@ export const InMemoryQueryBus: <Q extends Value, V extends Value>() => QueryBus<
         const in$ = new Subject<Query<Q>>()
         const out$ = new Subject<E.Either<Error, O.Option<V>>>()
         return {
-            subscribe: (queryListener: QueryListener<Q, V>) => E.tryCatch(() => {
+            subscribe: (queryListener: QueryListener<V>) => E.tryCatch(() => {
                 in$
                     .pipe(filter(query => queryListener.queries().includes(query.type)))
                     .subscribe(async query => out$.next(await queryListener.handleQuery(query)()))
