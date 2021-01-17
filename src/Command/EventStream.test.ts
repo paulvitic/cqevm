@@ -1,40 +1,39 @@
 import * as O from "fp-ts/Option"
 import * as E from "fp-ts/Either"
-import {DomainEvent, domainEvent} from "../../DomainEvent";
-import {ValueObject} from "../ValueObject";
-import {DomainEntity} from "../DomainEntity";
-import {lookup} from "fp-ts/Record";
-import assert from "assert";
-import {bufferTime, groupBy, mergeMap, reduce, tap} from "rxjs/operators";
-import {from, Observable, of} from "rxjs";
-import {observable} from "fp-ts-rxjs/lib/Observable";
-import {apply} from "fp-ts";
-import {tryCatch} from "fp-ts/TaskEither";
-import {reduceStream, stateOf, StreamReducer, StreamState} from "../EventStream";
+import * as TE from "fp-ts/TaskEither";
+import {DomainEvent, domainEvent} from "../DomainEvent";
+import {from, Observable} from "rxjs";
+import {
+    reduceWith,
+    stateOf,
+    CommandExecutor,
+    EventStream,
+    StreamReducer,
+    StreamState,
+    eventStream
+} from "./EventStream";
 import {pipe} from "fp-ts/pipeable";
-import {Either} from "fp-ts/Either";
-import {Option} from "fp-ts/Option";
-
-type TestState = {
-    a: string,
-    b: O.Option<ValueObject<{c: boolean, d: number}>>
-    d: O.Option<DomainEntity<{e: number}>>
-}
-
-const STREAM_ID = 1234
-
-const CREATED_EVENT = "CREATED_EVENT"
-type CreatedEvent = { a: string }
-
-const UPDATED_EVENT = "UPDATED_EVENT"
+import {flow} from "fp-ts/function";
 
 describe("given", () => {
-
-    //type UPDATED_EVENT = { a: string }
-
-    let given = from([
-        domainEvent(CREATED_EVENT, STREAM_ID, {a: "initial value"})
-    ])
+    // type TestState = {
+    //     a: string,
+    //     b: O.Option<ValueObject<{c: boolean, d: number}>>
+    //     d: O.Option<DomainEntity<{e: number}>>
+    // }
+    //
+    // const STREAM_ID = 1234
+    //
+    // const CREATED_EVENT = "CREATED_EVENT"
+    // type CreatedEvent = { a: string }
+    //
+    // const UPDATED_EVENT = "UPDATED_EVENT"
+    //
+    // type UPDATED_EVENT = { a: string }
+    //
+    // let given = from([
+    //     domainEvent(CREATED_EVENT, STREAM_ID, {a: "initial value"})
+    // ])
 
     /*describe("when", () => {
         const when = eventStream()
@@ -86,62 +85,59 @@ describe("given", () => {
 })
 
 describe('select', function () {
+    type SomeState = {a: number, b: number}
+    const STREAM_ID = 1234
 
-    /*type StreamReducer<T> = (previous: Either<Error,Option<T>>, event: DomainEvent) =>
-        Either<Error, Option<T>>
+    const when = from([
+        domainEvent("created", STREAM_ID, { a:1, b:1 }),
+        domainEvent("aIncremented", STREAM_ID, 2, 1),
+        domainEvent("aIncremented", STREAM_ID, 3, 2)
+    ])
 
-    type StreamReducers<T> = Record<string, StreamReducer<T>>
-
-    const selectReducer: <T>(reducers: StreamReducers<T>) =>
-        (previous: Either<Error,Option<T>>, event: DomainEvent) => Either<Error, Option<T>> =
-            reducers => (previous, event) => pipe(
-                lookup(event.type, reducers),
-                fromOption(() => new Error("reducer not found")),
-                chain(reducer => reducer(previous, event))
-            )
-
-    const reduceUsing: <T>(reducers: StreamReducers<T>) =>
-        (events: DomainEvent[]) => Either<Error, T> =
-            reducers => events => pipe(
-                events,
-                arrReduce(E.right(none), selectReducer(reducers)),
-                map(fromOption(() => new Error('could not reduce stream'))),
-                flatten
-            )*/
-
-    it('should ', async () => {
-        type SomeState = {a: number, b: number}
-        const STREAM_ID = 1234
-
-        const given: StreamReducer<SomeState> = {
-            created: (previous, event:DomainEvent<{ a: number, b: number }>) =>
-                E.right(O.some(stateOf(STREAM_ID, {a: event.payload.a, b: event.payload.b}))),
-
+    describe('', function () {
+        const testReducer: StreamReducer<SomeState> = {
+            created: (previous, event:DomainEvent<{ a: number, b: number }>) => E.right(
+                O.some(stateOf(STREAM_ID, {a: event.payload.a, b: event.payload.b}))
+            ),
             aIncremented: (previous, event:DomainEvent<number>) => pipe(
                 previous,
-                E.chain(previous => pipe(
-                    previous,
-                    E.fromOption(() => new Error(`previous state can not be null`)),
-                    E.map(prev => O.some(stateOf(prev.id,
-                        { ...prev.state, a: prev.state.a + event.payload})))
-                    )
+                E.chain(E.fromOption(() => new Error(`previous state can not be null`))),
+                E.map(previous => O.some(stateOf(previous.id,
+                    { ...previous.state, a: previous.state.a + event.payload}, event.sequence))
                 )
             )
         }
 
-        const when = from([
-            domainEvent("created", STREAM_ID, {a:1, b:1}),
-            domainEvent("aIncremented", STREAM_ID, 2),
-            domainEvent("aIncremented", STREAM_ID, 2)
-        ])
+        it('should ', async () => {
+            let then = await reduceWith(testReducer)(when)()
+            let result = E.isRight(then) && O.isSome(then.right) && then.right.value;
+            expect(result.playHead).toBe(2)
+            expect(result.state.a).toBe(6)
+        });
 
-        let then = await reduceStream(given)(when)()
-        expect(E.isRight(then)).toBeTruthy()
+        describe('', ()=> {
+            const testExecutor: EventStream<SomeState> = {
+                incrementB: (state) => (increment: number) => pipe(
+                    state,
+                    TE.chain(flow(
+                        O.map(state => state.state.b > 5 ?
+                            TE.left(new Error('b can not be further incremented')) :
+                            TE.right(domainEvent("bUpdated", state.id,
+                            state.state.b + increment, state.playHead + 1))
+                        ),
+                        O.getOrElse(() => TE.left(new Error('can not increment on a empty state')))
+                    ))
+                )
+            }
 
-        /*    .subscribe(
-            (then:Either<Error, Option<StreamState<SomeState>>>) =>
-            expect(E.isRight(then) && O.isSome(then.right) && then.right.value.state.a).toBe(5)
-        )*/
+            it('should ', async () => {
+                let then = await eventStream(testReducer, testExecutor).incrementB(when)(4)()
+                let result = E.isRight(then) && then.right;
+                expect(result.type).toBe("bUpdated")
+                expect(result.sequence).toBe(3)
+                expect(result.payload).toBe(5)
+            });
+        })
     });
 });
 
