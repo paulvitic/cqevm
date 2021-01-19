@@ -1,7 +1,7 @@
 import * as O from "fp-ts/Option";
-import {ValueObject} from "../ValueObject";
-import {domainEntity, DomainEntity} from "../DomainEntity";
-import {aggregate, Aggregate} from "../Aggregate";
+import {ValueObject} from "./ValueObject";
+import {domainEntity, DomainEntity} from "./DomainEntity";
+import {aggregate, Aggregate} from "./Aggregate";
 
 it("", () => {
     type TestState = {

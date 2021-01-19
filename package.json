@@ -26,7 +26,6 @@
     "axios": "^0.19.1",
     "fp-ts": "^2.9.3",
     "rxjs": "^6.6.3",
-    "fp-ts-rxjs": "^0.6.11",
     "express": "^4.17.1",
     "express-list-middleware": "^1.0.1",
     "swagger-express-middleware": "^4.0.2",

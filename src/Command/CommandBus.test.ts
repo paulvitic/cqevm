@@ -1,9 +1,9 @@
-import {App} from "../../App";
+import {App} from "../App";
 import * as TE from "fp-ts/TaskEither";
 import * as E from "fp-ts/Either";
 
-import {domainEvent, DomainEvent} from "../../DomainEvent";
-import {command} from "../Command";
+import {domainEvent, DomainEvent} from "../DomainEvent";
+import {command} from "./Command";
 
 describe("given", ()=> {
     const app = App()

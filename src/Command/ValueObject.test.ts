@@ -1,4 +1,4 @@
-import {valueOf, ValueObject} from "../ValueObject";
+import {valueOf, ValueObject} from "./ValueObject";
 
 describe("ValueObject", () => {
     it("", () => {

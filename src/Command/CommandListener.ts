@@ -4,10 +4,11 @@ import {DomainEvent} from "../DomainEvent";
 import {State} from "./State";
 import * as O from "fp-ts/Option";
 import * as E from "fp-ts/Either";
-import {pipe} from "fp-ts/pipeable";
 import * as TE from "fp-ts/TaskEither";
-import {CommandExecutor, EventStream, StreamAggregator} from "./EventStream";
+import {EventStreamHandler, StreamHandler} from "./EventStreamHandler";
 import {Observable} from "rxjs";
+import * as R from "fp-ts/Record";
+import {pipe} from "fp-ts/pipeable";
 
 /**
  * Test with
@@ -18,51 +19,42 @@ export type StateChange = (given: Observable<DomainEvent>) => (when: Command) =>
 
 export type CommandListener<A extends State = State> = {
     commands: () => string[],
-    changeState: StateChange
     bindExecutor: (commandType: string,
                    map: (command: Command) => any[],
-                   stream: EventStream<A>,
+                   handler: EventStreamHandler<A>,
                    executorName: string) => E.Either<Error, void>
+    changeState: StateChange
 }
 
 export const commandListener: <A extends State>() => CommandListener<A> =
     <A extends State>() => {
 
-        const handlers: { [commandType: string]: {
-                reduce: StreamAggregator<A>
+        const handlers: {
+            [commandType: string]: {
                 map: (command: Command) => any[]
-                execute: CommandExecutor<A> } } = {}
+                handle: StreamHandler<A>
+            }
+        } = {}
 
         return {
             commands: () => Object.keys(handlers),
-            changeState: given => when => pipe(
-                O.fromNullable(handlers[when.type]),
-                O.map(handler => pipe(
-                    TE.fromEither(handler.reduce(given)),
-                    TE.chain( state => TE.fromEither(handler.execute(when)(state)))
-                )),
-                O.getOrElse(() => TE.right(null))
-            ),
             bindExecutor: (commandType: string,
                            map: (command: Command) => any[],
-                           stream: EventStream<A>,
-                           executorName: string) => pipe(
+                           handler: EventStreamHandler<A>,
+                           handlerName: string) => pipe(
                 handlers,
-                E.fromPredicate(executors => pipe(
-                    O.fromNullable(executors[commandType]),
-                    O.isNone
-                ), () => new Error('executor already registered')),
-                E.chain(executors => pipe(
-                    pipe(
-                        E.Do,
-                        E.apS('reduce', E.of(stream.reduce)),
-                        E.apS('map', E.of(map)),
-                        E.apSW('execute', pipe(
-                            stream.bind(executorName),
-                            E.fromOption(() => new Error()))),
-                    ),
-                    E.map( executor => { executors[commandType] = executor })
-                ))
+                E.fromPredicate(handlers => O.isNone(O.fromNullable(handlers[commandType])),
+                    () => new Error('executor already registered')),
+                E.chain(handlers => pipe(
+                    R.lookup(handlerName, handler),
+                    E.fromOption(() => new Error(`no handler with name ${handlerName}`)),
+                    E.map( handle => { handlers[commandType] = {map, handle} }))
+                )
+            ),
+            changeState: given => when => pipe(
+                O.fromNullable(handlers[when.type]),
+                O.map(handler => handler.handle(given)(handler.map(when))),
+                O.getOrElse(() => TE.right(null))
             )
         }
     }

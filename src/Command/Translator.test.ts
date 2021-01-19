@@ -1,12 +1,12 @@
-import {DomainEvent, domainEvent} from "../../DomainEvent";
-import {eventStream} from "../EventStream";
-import {command, Command} from "../Command";
+import {DomainEvent, domainEvent} from "../DomainEvent";
+import {eventStreamHandler} from "./EventStreamHandler";
+import {command, Command} from "./Command";
 import * as O from "fp-ts/Option";
-import {Aggregate} from "../Aggregate";
+import {Aggregate} from "./Aggregate";
 import * as E from "fp-ts/Either";
-import {translator} from "../Translator";
+import {translator} from "./Translator";
 import {take, toArray} from "rxjs/operators";
-import {App} from "../../App";
+import {App} from "../App";
 
 describe("given", () => {
     const app = App()
@@ -25,7 +25,7 @@ describe("given", () => {
     type StateModel = { a : string }
 
     const STREAM_ID = 1234
-    const stream = eventStream()
+    const stream = eventStreamHandler()
     stream.executor(
         PROCESS_TODO,
         (command: Command<CommandType>) => (state: O.Option<Aggregate<StateModel>>) =>

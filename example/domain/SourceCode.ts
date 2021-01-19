@@ -1,63 +1,38 @@
-import {eventStream, EventStream} from "../../src/Command/EventStream";
-import {Aggregate, aggregate} from "../../src/Command/Aggregate";
+import {eventStreamHandler, CommandExecutor, StreamReducer} from "../../src/Command/EventStreamHandler";
+import {aggregate} from "../../src/Command/Aggregate";
 import * as E from "fp-ts/Either";
 import {pipe} from "fp-ts/pipeable";
 import * as O from "fp-ts/Option";
 import {DomainEvent, domainEvent} from "../../src/DomainEvent";
 import {v4 as uuidv4} from "uuid";
+import {sourceCodeRegistered, SourceCodeRegistered} from "./SourceCodeEvents";
+import * as TE from "fp-ts/TaskEither";
 
-/////////////////
-// Events
-/////////////////
-export const SOURCE_CODE_REGISTERED = "SOURCE_CODE_REGISTERED"
-export type SourceCodeRegistered = {
-    name: string
-}
-
-export const DEPLOYMENT_REPORT_SOURCE_RECORDED = "DEPLOYMENT_REPORT_SOURCE_RECORDED"
-export type DeploymentReportSourceRecorded = {
-    nextReportDate: number
-}
-
-export const DEPLOYMENTS_COUNTED = "DEPLOYMENTS_COUNTED"
-export type DeploymentsCounted = {
-    reportDate: number
-    count: number
-    nextReportDate: number
-}
-
-
-//////////////////
-// Stream
-//////////////////
 export type SourceCode = {
     name: string
 }
 
-export const EXECUTE_REGISTER_SOURCE_CODE = "EXECUTE_REGISTER_SOURCE_CODE"
-
-export const sourceCode = pipe(
-    E.of(eventStream<SourceCode>()),
-
-    E.chainFirst( stream => stream.reducerFor(SOURCE_CODE_REGISTERED,
-        (event: DomainEvent<SourceCodeRegistered>) => state => pipe(
-            state,
-            O.fold(() => E.tryCatch(() =>
-                    aggregate(event.streamId, {name: event.payload.name}, event.sequence), E.toError),
-                _ => E.left(new Error("already reduced source code registered"))
-            )
-        ))
-    ),
-
-    E.chainFirst( stream => stream.executor(EXECUTE_REGISTER_SOURCE_CODE,
-        (name: string) => (state: O.Option<Aggregate<SourceCode>>) => pipe(
-            state,
-            E.fromPredicate(state => O.isNone(state),
-                () => new Error(`Source code already registered`)),
-            E.chain(() => E.tryCatch(() =>
-                    domainEvent(SOURCE_CODE_REGISTERED, uuidv4(), {name}, 0), E.toError))
-        ))
+const sourceCodeReducer: StreamReducer<SourceCode> = {
+    sourceCodeRegistered: (previous, event:DomainEvent<SourceCodeRegistered>) => pipe(
+        previous,
+        O.fold(() => E.tryCatch(() => O.some(
+            aggregate(event.streamId, {name: event.payload.name}, event.sequence)), E.toError),
+            _ => E.left(new Error("source code already registered"))
+        )
     )
-)
+}
+
+const sourceCodeExecutor: CommandExecutor<SourceCode> = {
+    registerSourceCode: state => (name: string) => pipe(
+        state,
+        TE.chain(TE.fromPredicate(state => O.isNone(state),
+            () => new Error(`Source code already registered`))),
+        TE.chain(() => TE.tryCatch(() => Promise.resolve(
+            domainEvent(sourceCodeRegistered, uuidv4(), {name}, 0)), E.toError)
+        )
+    )
+}
+
+export const sourceCode = eventStreamHandler(sourceCodeReducer, sourceCodeExecutor)
 
 

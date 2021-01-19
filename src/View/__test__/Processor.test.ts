@@ -3,7 +3,7 @@ import {InMemoryRepository, Repository} from "../Repository";
 import {processor} from "../Processor";
 import {Command, command} from "../../Command/Command";
 import {DomainEvent, domainEvent, InMemoryEventBus, InMemoryEventLog} from "../../DomainEvent";
-import {eventStream} from "../../Command/EventStream";
+import {eventStreamHandler} from "../../Command/EventStreamHandler";
 import * as O from "fp-ts/Option";
 import {Aggregate} from "../../Command/Aggregate";
 import * as E from "fp-ts/Either";
@@ -21,7 +21,7 @@ describe("given", () => {
     type StateModel = { a : string }
 
     const STREAM_ID = 1234
-    const stream = eventStream(app.eventLog)
+    const stream = eventStreamHandler(app.eventLog)
 
     stream.executor(
         PROCESS_TODO,

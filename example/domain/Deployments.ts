@@ -8,7 +8,6 @@ import {
 } from "./SourceCode";
 import {DomainEvent} from "../../src/DomainEvent";
 import {array} from "fp-ts";
-import {repeat} from "rxjs/operators";
 
 export type Deployments = Array<{
     sourceCodeId: string,

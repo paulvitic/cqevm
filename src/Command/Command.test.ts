@@ -1,5 +1,4 @@
-import {Command, command} from "../Command";
-
+import {Command, command} from "./Command";
 
 describe("", () => {
     it("", () => {

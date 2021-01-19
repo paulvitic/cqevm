@@ -6,12 +6,12 @@ import {from, Observable} from "rxjs";
 import {
     reduceWith,
     stateOf,
+    EventStreamHandler,
     CommandExecutor,
-    EventStream,
     StreamReducer,
     StreamState,
-    eventStream
-} from "./EventStream";
+    eventStreamHandler
+} from "./EventStreamHandler";
 import {pipe} from "fp-ts/pipeable";
 import {flow} from "fp-ts/function";
 
@@ -101,7 +101,7 @@ describe('select', function () {
             ),
             aIncremented: (previous, event:DomainEvent<number>) => pipe(
                 previous,
-                E.chain(E.fromOption(() => new Error(`previous state can not be null`))),
+                E.fromOption(() => new Error(`previous state can not be null`)),
                 E.map(previous => O.some(stateOf(previous.id,
                     { ...previous.state, a: previous.state.a + event.payload}, event.sequence))
                 )
@@ -116,8 +116,8 @@ describe('select', function () {
         });
 
         describe('', ()=> {
-            const testExecutor: EventStream<SomeState> = {
-                incrementB: (state) => (increment: number) => pipe(
+            const testExecutor: CommandExecutor<SomeState> = {
+                incrementB: state => (increment: number) => pipe(
                     state,
                     TE.chain(flow(
                         O.map(state => state.state.b > 5 ?
@@ -131,7 +131,7 @@ describe('select', function () {
             }
 
             it('should ', async () => {
-                let then = await eventStream(testReducer, testExecutor).incrementB(when)(4)()
+                let then = await eventStreamHandler(testReducer, testExecutor).incrementB(when)(4)()
                 let result = E.isRight(then) && then.right;
                 expect(result.type).toBe("bUpdated")
                 expect(result.sequence).toBe(3)
