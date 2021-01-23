@@ -14,7 +14,7 @@ export const App: <D extends Value, C extends Value, Q extends Value, V extends 
     <D extends Value, C extends Value, Q extends Value, V extends Value>() => {
         const eventBus = InMemoryEventBus();
         const eventLog = InMemoryEventLog([eventBus]);
-        const commandBus = InMemoryCommandBus();
+        const commandBus = InMemoryCommandBus(eventLog);
         const queryBus = InMemoryQueryBus<Q, V>();
         return {
             eventBus,

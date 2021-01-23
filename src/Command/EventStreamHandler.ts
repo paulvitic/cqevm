@@ -57,6 +57,9 @@ export const reduceWith = <A extends State>(reducer: StreamReducer<A>)=> (stream
         return reduced
     }
 
+/*export const reduceWith = <A extends State>(reducer: StreamReducer<A>) => (stream: Observable<DomainEvent>) =>
+    stream.pipe(reduce(select(reducer), E.right(O.none))).toPromise()*/
+
 
 type Executor<A extends State> =
     (state: O.Option<StreamState<A>>) => (...args: any[]) => E.Either<Error, DomainEvent>

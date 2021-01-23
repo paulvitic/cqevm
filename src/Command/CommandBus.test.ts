@@ -16,19 +16,13 @@ describe("given", ()=> {
 
     app.commandBus.subscribe({
         commands: () => [COMMAND_A],
-        changeState: _given => _when => TE.tryCatch(() => new Promise<DomainEvent>( async resolve => {
-            let event = domainEvent(EVENT_A, 123, {})
-            await new Promise<void>(resolve => setTimeout(() => resolve(), 800));
-            resolve(event)
-        }), E.toError),
-        bindExecutor: (_commandType, _map, _stream, _executorName) => E.right(null)
+        changeState: _given => _when => E.tryCatch(() => domainEvent(EVENT_A, 123, {}), E.toError),
+        bindExecutor: (_commandType, _stream, _executorName, _map) => E.right(null)
     })
 
     app.commandBus.subscribe({
         commands: () => [COMMAND_B],
-        changeState: _given => _when => TE.tryCatch(() => new Promise<DomainEvent>( async resolve => {
-            resolve(domainEvent(EVENT_B, 345, {}))
-        }), E.toError),
+        changeState: _given => _when => E.tryCatch(() => domainEvent(EVENT_B, 345, {}), E.toError),
         bindExecutor: (_commandType, _map, _stream, _executorName) => E.right(null)
     })
 

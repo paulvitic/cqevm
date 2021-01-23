@@ -14,7 +14,7 @@ import {Either} from "fp-ts/Either";
  *
  * @see: https://eventmodeling.org/posts/what-is-event-modeling/?s=09
  */
-export type StateChange = (given: Observable<DomainEvent>) => (when: Command) => Either<Error, DomainEvent>
+export type StateChange = (given: Observable<DomainEvent>) => (when: Command)  => Either<Error, DomainEvent>
 
 export type CommandListener<A extends State = State> = {
     commands: () => string[],
