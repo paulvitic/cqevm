@@ -1,19 +1,15 @@
 import * as O from "fp-ts/Option"
 import * as E from "fp-ts/Either"
-import * as TE from "fp-ts/TaskEither";
 import {DomainEvent, domainEvent} from "../DomainEvent";
-import {from, Observable} from "rxjs";
+import {from} from "rxjs";
 import {
     reduceWith,
     stateOf,
-    EventStreamHandler,
     CommandExecutor,
     StreamReducer,
-    StreamState,
     eventStreamHandler
 } from "./EventStreamHandler";
 import {pipe} from "fp-ts/pipeable";
-import {flow} from "fp-ts/function";
 
 describe("given", () => {
     // type TestState = {
@@ -109,7 +105,7 @@ describe('select', function () {
         }
 
         it('should ', async () => {
-            let then = await reduceWith(testReducer)(when)()
+            let then = reduceWith(testReducer)(when)
             let result = E.isRight(then) && O.isSome(then.right) && then.right.value;
             expect(result.playHead).toBe(2)
             expect(result.state.a).toBe(6)
@@ -117,7 +113,7 @@ describe('select', function () {
 
         describe('', ()=> {
             const testExecutor: CommandExecutor<SomeState> = {
-                incrementB: state => (increment: number) => pipe(
+                /*incrementB: state => (increment: number) => pipe(
                     state,
                     TE.chain(flow(
                         O.map(state => state.state.b > 5 ?
@@ -127,11 +123,19 @@ describe('select', function () {
                         ),
                         O.getOrElse(() => TE.left(new Error('can not increment on a empty state')))
                     ))
+                )*/
+                incrementB: state => (increment: number) => pipe(
+                    state,
+                    O.map(state  => state.state.b > 5 ?
+                        E.left(new Error('b can not be further incremented')) :
+                        E.right(domainEvent("bUpdated", state.id,
+                            state.state.b + increment, state.playHead + 1))),
+                    O.getOrElse(() => E.left(new Error('need previous state to increment')))
                 )
             }
 
             it('should ', async () => {
-                let then = await eventStreamHandler(testReducer, testExecutor).incrementB(when)(4)()
+                let then = eventStreamHandler(testReducer, testExecutor).incrementB(when)(4)
                 let result = E.isRight(then) && then.right;
                 expect(result.type).toBe("bUpdated")
                 expect(result.sequence).toBe(3)

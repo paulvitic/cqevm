@@ -3,12 +3,11 @@ import {State} from "./State";
 import {pipe} from "fp-ts/pipeable";
 import * as O from "fp-ts/Option";
 import * as E from "fp-ts/Either";
-import * as TE from "fp-ts/TaskEither";
 import {Observable} from "rxjs";
 import {DomainEntity} from "./DomainEntity";
 import {Aggregate} from "./Aggregate";
 import * as R from "fp-ts/Record";
-import {map, reduce} from "rxjs/operators";
+import {reduce} from "rxjs/operators";
 
 // we want to give a function to application layer
 // command => curry(
@@ -49,31 +48,35 @@ const select = <A extends State>(reducer: StreamReducer<A>) =>
         )
     )
 
-export const reduceWith = <A extends State>(reducer: StreamReducer<A>) => (stream: Observable<DomainEvent>) =>
-    pipe(
-        TE.tryCatch(() => stream.pipe(
-            reduce(select(reducer), E.right(O.none)),
-            map(TE.fromEither)).toPromise(), E.toError),
-        TE.flatten
-    )
+export const reduceWith = <A extends State>(reducer: StreamReducer<A>)=> (stream: Observable<DomainEvent>) =>
+    {
+        let reduced: E.Either<Error, O.Option<StreamState<A>>> = E.right(O.none)
+        stream.pipe(
+            reduce(select(reducer), E.right(O.none))
+        ).subscribe(state => reduced = state)
+        return reduced
+    }
 
 
 type Executor<A extends State> =
-    (state: TE.TaskEither<Error, O.Option<StreamState<A>>>) => (...args: any[]) => TE.TaskEither<Error, DomainEvent>
+    (state: O.Option<StreamState<A>>) => (...args: any[]) => E.Either<Error, DomainEvent>
 
 export type CommandExecutor<A extends State> = Record<string, Executor<A>>
 
 
 export type StreamHandler<A extends State> =
-    (stream: Observable<DomainEvent>) => (...args: any[]) => TE.TaskEither<Error, DomainEvent>
+    (stream: Observable<DomainEvent>) => (...args: any[]) => E.Either<Error, DomainEvent>
 
 export type EventStreamHandler<A extends State> = Record<string, StreamHandler<A>>
 
-export const eventStreamHandler = <A extends State>(reducer: StreamReducer<A>, executor: CommandExecutor<A>) =>
-    pipe(
-        executor,
-        R.map( executor => (stream: Observable<DomainEvent>) => executor(reduceWith(reducer)(stream)))
-    )
-
-
+export const eventStreamHandler: <A extends State>(reducer: StreamReducer<A>, executor: CommandExecutor<A>) => EventStreamHandler<A> =
+    <A extends State>(reducer: StreamReducer<A>, executor: CommandExecutor<A>) =>
+        pipe(
+            executor,
+            R.map( executor => (stream: Observable<DomainEvent>) => pipe(
+                reduceWith(reducer)(stream),
+                E.map(executor),
+                E.getOrElse(err => () => E.left(err))
+            )
+        ))
 

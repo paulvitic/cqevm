@@ -6,14 +6,13 @@ import * as O from "fp-ts/Option";
 import {DomainEvent, domainEvent} from "../../src/DomainEvent";
 import {v4 as uuidv4} from "uuid";
 import {sourceCodeRegistered, SourceCodeRegistered} from "./SourceCodeEvents";
-import * as TE from "fp-ts/TaskEither";
 
 export type SourceCode = {
     name: string
 }
 
 const sourceCodeReducer: StreamReducer<SourceCode> = {
-    sourceCodeRegistered: (previous, event:DomainEvent<SourceCodeRegistered>) => pipe(
+    sourceCodeRegistered: (previous, event: DomainEvent<SourceCodeRegistered>) => pipe(
         previous,
         O.fold(() => E.tryCatch(() => O.some(
             aggregate(event.streamId, {name: event.payload.name}, event.sequence)), E.toError),
@@ -25,11 +24,9 @@ const sourceCodeReducer: StreamReducer<SourceCode> = {
 const sourceCodeExecutor: CommandExecutor<SourceCode> = {
     registerSourceCode: state => (name: string) => pipe(
         state,
-        TE.chain(TE.fromPredicate(state => O.isNone(state),
-            () => new Error(`Source code already registered`))),
-        TE.chain(() => TE.tryCatch(() => Promise.resolve(
-            domainEvent(sourceCodeRegistered, uuidv4(), {name}, 0)), E.toError)
-        )
+        E.fromPredicate(state => O.isNone(state),
+            () => new Error(`Source code already registered`)),
+        E.map(() => domainEvent(sourceCodeRegistered, uuidv4(), {name}, 0))
     )
 }
 

@@ -1,7 +1,8 @@
 import {EXECUTE_REGISTER_SOURCE_CODE, sourceCode} from "../domain/SourceCode";
-import * as O from "fp-ts/Option";
 import {Command} from "../../src/Command/Command";
 import * as E from "fp-ts/Either";
+import * as RE from "fp-ts/Reader";
+
 import {pipe} from "fp-ts/pipeable";
 import {commandListener} from "../../src/Command/CommandListener";
 
@@ -21,13 +22,7 @@ export type HerokuDeploymentReportSource = {
 // Application
 /////////////////////
 export const sourceCodeApplication = pipe(
-    sourceCode,
-    E.map(sourceCode => pipe(
-        E.right(commandListener()),
-        E.chainFirst( listener => listener.bindExecutor(
-            REGISTER_SOURCE_CODE,
-            (command: Command<RegisterSourceCode>) => [command.payload.name],
-            sourceCode, EXECUTE_REGISTER_SOURCE_CODE)
-        )
-    ))
+    RE.of(commandListener()),
+    RE.map(listener => listener.bindExecutor()),
+    RE.compose
 )
