@@ -1,9 +1,9 @@
 import {view} from "../../src/View/View";
 import {pipe} from "fp-ts/pipeable";
 import * as E from "fp-ts/Either";
-import {SOURCE_CODE_REGISTERED, SourceCodeRegistered} from "./SourceCode";
 import {fold} from "fp-ts/Option";
 import {DomainEvent} from "../../src/DomainEvent";
+import {sourceCodeRegistered, SourceCodeRegistered} from "./SourceCodeEvents";
 
 export type SourceCodes = Record<string, {
     name: string
@@ -11,7 +11,7 @@ export type SourceCodes = Record<string, {
 
 export const sourceCodes = pipe(
     E.of(view<SourceCodes>()),
-    E.chainFirst( view => view.mutateWhen(SOURCE_CODE_REGISTERED,
+    E.chainFirst( view => view.mutateWhen(sourceCodeRegistered,
         from => (when: DomainEvent<SourceCodeRegistered>) => pipe(
             from,
             fold(() => E.right({ [when.streamId]:{name: when.payload.name} }),

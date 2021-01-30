@@ -1,5 +1,4 @@
 import {App} from "../App";
-import * as TE from "fp-ts/TaskEither";
 import * as E from "fp-ts/Either";
 
 import {domainEvent, DomainEvent} from "../DomainEvent";

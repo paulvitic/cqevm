@@ -25,6 +25,7 @@
     "winston": "^3.2.1",
     "axios": "^0.19.1",
     "fp-ts": "^2.9.3",
+    "monocle-ts": "^2.3.5",
     "rxjs": "^6.6.3",
     "express": "^4.17.1",
     "express-list-middleware": "^1.0.1",

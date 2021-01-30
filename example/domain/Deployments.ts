@@ -2,12 +2,14 @@ import {fold, map} from "fp-ts/Option";
 import {pipe} from "fp-ts/pipeable";
 import * as E from "fp-ts/Either";
 import {view} from "../../src/View/View";
-import {
-    DEPLOYMENT_REPORT_SOURCE_RECORDED,
-    DeploymentReportSourceRecorded, DEPLOYMENTS_COUNTED, DeploymentsCounted
-} from "./SourceCode";
 import {DomainEvent} from "../../src/DomainEvent";
 import {array} from "fp-ts";
+import {
+    deploymentReportSourceRecorded,
+    DeploymentReportSourceRecorded,
+    deploymentsCounted,
+    DeploymentsCounted
+} from "./SourceCodeEvents";
 
 export type Deployments = Array<{
     sourceCodeId: string,
@@ -18,7 +20,7 @@ export type Deployments = Array<{
 export const deployments = pipe(
     E.of(view<Deployments>()),
 
-    E.chainFirst( view => view.mutateWhen(DEPLOYMENT_REPORT_SOURCE_RECORDED,
+    E.chainFirst( view => view.mutateWhen(deploymentReportSourceRecorded,
         from => (when: DomainEvent<DeploymentReportSourceRecorded>) => pipe(
             from,
             fold(() => E.right(
@@ -29,7 +31,7 @@ export const deployments = pipe(
         )
     )),
 
-    E.chainFirst( view => view.mutateWhen(DEPLOYMENTS_COUNTED,
+    E.chainFirst( view => view.mutateWhen(deploymentsCounted,
         from => (when: DomainEvent<DeploymentsCounted>) => pipe(
             from,
             fold(() => E.left(new Error("no report to record")), // fixme: too strict?

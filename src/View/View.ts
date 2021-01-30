@@ -2,16 +2,25 @@ import * as E from "fp-ts/Either";
 import * as TE from "fp-ts/TaskEither";
 import * as O from "fp-ts/Option";
 import {Value} from "../Value";
-import {DomainEvent, EventListener} from "../DomainEvent";
+import {DomainEvent} from "../DomainEvent";
 import {Option} from "fp-ts/Option";
 import {pipe} from "fp-ts/pipeable";
 import {InMemoryRepository, Repository} from "./Repository";
 import {Query} from "./Query";
-import {Subscription, timer} from "rxjs";
+import {Observable, Subscription, timer} from "rxjs";
 import {map} from "rxjs/operators";
 import {Processor} from "./Processor";
 import {array} from "fp-ts";
 import {QueryListener} from "./QueryListener";
+import {EventListener} from "../DomainEvent/EventListener";
+
+/**
+ * Test with
+ *
+ * @see: https://eventmodeling.org/posts/what-is-event-modeling/?s=09
+ */
+export type StateView<V extends Value> =
+    (when: Observable<DomainEvent>) => E.Either<Error, V>
 
 export type ViewMutator<V extends Value = Value> =
     (prev: Option<V>) => (when: DomainEvent) => E.Either<Error, V>

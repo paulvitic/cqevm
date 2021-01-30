@@ -3,11 +3,7 @@ import {Subject} from "rxjs";
 import {TaskEither, tryCatch as tryCatchPromise} from "fp-ts/TaskEither";
 import {filter} from "rxjs/operators";
 import {Either, toError, tryCatch} from "fp-ts/Either";
-
-export interface EventListener {
-    events: () => string[],
-    handleEvent: (event: DomainEvent) => TaskEither<Error, void>
-}
+import {EventListener} from "./EventListener";
 
 export interface EventBus {
     subscribe(eventListener: EventListener): Either<Error, void>
